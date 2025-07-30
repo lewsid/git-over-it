@@ -204,6 +204,23 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.version-number {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: monospace;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.version-number:hover {
+    color: var(--electric-blue);
+    text-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+    transform: scale(1.1);
+}
+
 .instructions h3 {
     color: var(--accent-color);
     margin-bottom: 10px;
