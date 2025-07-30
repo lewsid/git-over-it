@@ -5,6 +5,9 @@ class GitOverItGame {
         this.ctx = this.canvas.getContext('2d');
         this.gameState = 'start'; // start, playing, gameOver
         
+        // Setup responsive canvas for mobile
+        this.setupCanvas();
+        
         // Game properties
         this.score = 0;
         this.floor = 1;
@@ -79,32 +82,85 @@ class GitOverItGame {
         this.gameCompletionTime = null;
         
         // Enable audio on first user interaction and handle Slack dismissal
-        document.addEventListener('click', (event) => {
+        const handleSlackDismissal = (event) => {
             if (this.audioContext && this.audioContext.state === 'suspended') {
                 this.audioContext.resume();
             }
             
-            // Handle Slack message dismissal
+            // Handle Slack message dismissal - now using display coordinates directly
             if (this.activeSlackMessage) {
                 const rect = this.canvas.getBoundingClientRect();
-                const clickX = event.clientX - rect.left;
-                const clickY = event.clientY - rect.top;
+                // Get coordinates from either click or touch event
+                const clientX = event.clientX || (event.touches && event.touches[0] ? event.touches[0].clientX : 0);
+                const clientY = event.clientY || (event.touches && event.touches[0] ? event.touches[0].clientY : 0);
+                
+                // Convert screen coordinates to display coordinates
+                const clickX = (clientX - rect.left) * ((this.displayWidth || 800) / rect.width);
+                const clickY = (clientY - rect.top) * ((this.displayHeight || 600) / rect.height);
                 
                 // Check if clicked on dismiss button or X button
                 if (this.slackCloseArea && 
                     clickX >= this.slackCloseArea.x && clickX <= this.slackCloseArea.x + this.slackCloseArea.width &&
                     clickY >= this.slackCloseArea.y && clickY <= this.slackCloseArea.y + this.slackCloseArea.height) {
                     this.activeSlackMessage = null;
+                    event.preventDefault();
                 } else if (this.slackXArea && 
                     clickX >= this.slackXArea.x && clickX <= this.slackXArea.x + this.slackXArea.width &&
                     clickY >= this.slackXArea.y && clickY <= this.slackXArea.y + this.slackXArea.height) {
                     this.activeSlackMessage = null;
+                    event.preventDefault();
                 }
             }
-        });
+        };
+        
+        // Add both click and touch event listeners for cross-platform support
+        document.addEventListener('click', handleSlackDismissal);
+        document.addEventListener('touchend', handleSlackDismissal);
         
         // Initialize game
         this.init();
+    }
+    
+    setupCanvas() {
+        // Get device pixel ratio for crisp rendering on high-DPI displays
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        
+        // Set canvas size based on screen size for mobile
+        if (window.innerWidth <= 768) {
+            // Mobile: Use full screen
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = Math.floor(rect.width * devicePixelRatio);
+            this.canvas.height = Math.floor(rect.height * devicePixelRatio);
+            
+            // Scale canvas context to match device pixel ratio
+            this.ctx.scale(devicePixelRatio, devicePixelRatio);
+            
+            // Store display size for coordinate calculations
+            this.displayWidth = rect.width;
+            this.displayHeight = rect.height;
+            
+            // Calculate game coordinate scaling
+            this.scaleX = 800 / this.displayWidth; // Game world is 800px wide
+            this.scaleY = 600 / this.displayHeight; // Game world is 600px tall
+        } else {
+            // Desktop: Use fixed size
+            this.canvas.width = 800;
+            this.canvas.height = 600;
+            this.displayWidth = 800;
+            this.displayHeight = 600;
+            this.scaleX = 1;
+            this.scaleY = 1;
+        }
+        
+        // Add resize listener for orientation changes
+        window.addEventListener('resize', () => {
+            setTimeout(() => this.setupCanvas(), 100);
+        });
+        
+        // Prevent default touch behaviors on canvas
+        this.canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        this.canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
     }
     
     async init() {
@@ -469,9 +525,10 @@ class GitOverItGame {
         const joystickKnob = document.getElementById('joystickKnob');
         const attackButton = document.getElementById('attackButton');
         
-        // Joystick touch handling
+        // Joystick touch handling with better mobile support
         joystick.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const touch = e.touches[0];
             const rect = joystick.getBoundingClientRect();
             this.touch.joystick.active = true;
@@ -482,12 +539,13 @@ class GitOverItGame {
         document.addEventListener('touchmove', (e) => {
             if (!this.touch.joystick.active) return;
             e.preventDefault();
+            e.stopPropagation();
             
             const touch = e.touches[0];
             const deltaX = touch.clientX - this.touch.joystick.startX;
             const deltaY = touch.clientY - this.touch.joystick.startY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const maxDistance = 30;
+            const maxDistance = window.innerWidth <= 768 ? 25 : 30; // Smaller on mobile
             
             if (distance <= maxDistance) {
                 this.touch.joystick.x = deltaX / maxDistance;
@@ -499,23 +557,32 @@ class GitOverItGame {
                 this.touch.joystick.y = Math.sin(angle);
                 joystickKnob.style.transform = `translate(-50%, -50%) translate(${Math.cos(angle) * maxDistance}px, ${Math.sin(angle) * maxDistance}px)`;
             }
-        });
+        }, { passive: false });
         
         document.addEventListener('touchend', (e) => {
-            this.touch.joystick.active = false;
-            this.touch.joystick.x = 0;
-            this.touch.joystick.y = 0;
-            joystickKnob.style.transform = 'translate(-50%, -50%)';
-        });
+            if (this.touch.joystick.active) {
+                this.touch.joystick.active = false;
+                this.touch.joystick.x = 0;
+                this.touch.joystick.y = 0;
+                joystickKnob.style.transform = 'translate(-50%, -50%)';
+            }
+        }, { passive: false });
         
-        // Attack button
+        // Attack button with better touch handling
         attackButton.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.handleAttack();
+            
+            // Visual feedback
+            attackButton.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                attackButton.style.transform = 'scale(1)';
+            }, 150);
         });
         
         // Show mobile controls on touch devices
-        if ('ontouchstart' in window) {
+        if ('ontouchstart' in window || window.innerWidth <= 768) {
             document.getElementById('mobileControls').style.display = 'flex';
         }
     }
@@ -888,7 +955,7 @@ class GitOverItGame {
             if (canMove) {
                 this.player.x = newX;
                 // Keep player on screen
-                this.player.x = Math.max(0, Math.min(this.canvas.width - this.player.width, this.player.x));
+                this.player.x = Math.max(0, Math.min((this.displayWidth || 800) - this.player.width, this.player.x));
             }
         }
         
@@ -993,7 +1060,7 @@ class GitOverItGame {
             if (Math.abs(this.player.knockbackX) < 10) this.player.knockbackX = 0;
             
             // Keep player on screen during knockback
-            this.player.x = Math.max(0, Math.min(this.canvas.width - this.player.width, this.player.x));
+            this.player.x = Math.max(0, Math.min((this.displayWidth || 800) - this.player.width, this.player.x));
         }
         
         // Gravity (always apply, even when dying)
@@ -1304,7 +1371,7 @@ class GitOverItGame {
     createConfetti() {
         for (let i = 0; i < 50; i++) {
             this.confetti.push({
-                x: Math.random() * this.canvas.width,
+                x: Math.random() * (this.displayWidth || 800),
                 y: -20,
                 vx: (Math.random() - 0.5) * 200,
                 vy: Math.random() * 100 + 50,
@@ -1325,7 +1392,7 @@ class GitOverItGame {
             piece.vy += 200 * deltaTime; // gravity
             piece.life -= deltaTime;
             piece.rotation += piece.rotationSpeed * deltaTime;
-            return piece.life > 0 && piece.y < this.canvas.height + 50;
+            return piece.life > 0 && piece.y < (this.displayHeight || 600) + 50;
         });
     }
     
@@ -1389,9 +1456,9 @@ class GitOverItGame {
     }
     
     render() {
-        // Clear canvas
+        // Clear canvas with proper dimensions
         this.ctx.fillStyle = 'linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #334155 100%)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
         
         // Save context for camera
         this.ctx.save();
@@ -1585,6 +1652,156 @@ class GitOverItGame {
                 sender: "Steven Davis (CEO)",
                 message: "Investors are coming tomorrow. This demo better work perfectly.",
                 urgency: "🔴"
+            },
+            {
+                sender: "Kevin Martinez (QA)",
+                message: "Found 47 new bugs in the latest build. Should I create tickets for all of them?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Rachel Wong (Designer)",
+                message: "The buttons are 2px off from the mockup. Can you fix them before launch?",
+                urgency: "🟢"
+            },
+            {
+                sender: "Tony Stark (DevOps)",
+                message: "The CI/CD pipeline is broken again. Third time this week. Help?",
+                urgency: "🔴"
+            },
+            {
+                sender: "Emma Johnson (HR)",
+                message: "Don't forget about the mandatory team building session at 2pm today!",
+                urgency: "🟢"
+            },
+            {
+                sender: "Alex Kumar (PM)",
+                message: "Can we add 'just one more feature'? It's super simple, I promise.",
+                urgency: "🟡"
+            },
+            {
+                sender: "Priya Patel (Marketing)",
+                message: "The blog post needs code examples. Can you write some sample Laravel code?",
+                urgency: "🟢"
+            },
+            {
+                sender: "Carlos Rodriguez (CEO)",
+                message: "Our competitor just launched the same feature. We need to one-up them ASAP.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Zoe Williams (PM)",
+                message: "The client wants to change the entire color scheme. Can you update everything?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Derek Kim (CTO)",
+                message: "Security audit found vulnerabilities. Need patches deployed immediately.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Samantha Lee (Support)",
+                message: "Customer is threatening to cancel unless we fix this bug today.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Brian Taylor (Sales)",
+                message: "Just promised the biggest client ever that this feature will be ready tomorrow.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Natalie Brown (PM)",
+                message: "Can you join the retrospective? We need to discuss why velocity is down.",
+                urgency: "🟢"
+            },
+            {
+                sender: "Jordan Miller (Designer)",
+                message: "The animation feels too slow. Can you speed it up by 0.2 seconds?",
+                urgency: "🟢"
+            },
+            {
+                sender: "Amanda Garcia (CTO)",
+                message: "Performance is terrible. Page load time needs to be under 2 seconds.",
+                urgency: "🟡"
+            },
+            {
+                sender: "Ryan Chen (DevOps)",
+                message: "AWS bill is through the roof. We need to optimize everything RIGHT NOW.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Nicole Adams (PM)",
+                message: "Sprint planning is in 10 minutes. Have you updated your story estimates?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Tyler Scott (QA)",
+                message: "All tests are failing after your last commit. Can you take a look?",
+                urgency: "🔴"
+            },
+            {
+                sender: "Olivia White (Legal)",
+                message: "GDPR compliance review needed. How do we handle user data deletion?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Marcus Johnson (CEO)",
+                message: "TechCrunch wants to feature us but needs a working demo in 2 hours.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Luna Zhang (PM)",
+                message: "User research shows people don't understand the interface. Can we simplify?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Jake Williams (Backend)",
+                message: "Database migrations are taking forever. Should we rollback?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Isabella Lopez (Design)",
+                message: "Can you make the logo bigger? And also smaller. But also more prominent.",
+                urgency: "🟢"
+            },
+            {
+                sender: "Noah Anderson (Security)",
+                message: "Someone tried to SQL inject our forms. Are we properly sanitizing inputs?",
+                urgency: "🔴"
+            },
+            {
+                sender: "Sophia Martinez (Product)",
+                message: "Analytics show 90% drop-off on the signup page. Emergency meeting?",
+                urgency: "🔴"
+            },
+            {
+                sender: "Ethan Davis (PM)",
+                message: "Can you estimate how long it would take to rewrite everything in React?",
+                urgency: "🟢"
+            },
+            {
+                sender: "Chloe Thompson (Support)",
+                message: "Forums are exploding with complaints about the latest update.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Mason Kim (CTO)",
+                message: "Servers are at 99% capacity. We need scaling solutions yesterday.",
+                urgency: "🔴"
+            },
+            {
+                sender: "Ava Rodriguez (PM)",
+                message: "Can we add dark mode? And also light mode? And also auto-switching mode?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Liam Wilson (Sales)",
+                message: "Client wants a mobile app too. Same features, same deadline. No problem, right?",
+                urgency: "🟡"
+            },
+            {
+                sender: "Grace Chang (CEO)",
+                message: "Pivot time! We're now B2B instead of B2C. How quickly can you adapt?",
+                urgency: "🔴"
             }
         ];
         
@@ -1606,13 +1823,14 @@ class GitOverItGame {
         
         // Block entire game with semi-transparent overlay
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.displayWidth || 800, this.displayHeight || 600);
         
-        // Slack notification window
-        const msgWidth = 400;
-        const msgHeight = 200;
-        const msgX = (this.canvas.width - msgWidth) / 2;
-        const msgY = (this.canvas.height - msgHeight) / 2;
+        // Slack notification window - responsive sizing for mobile
+        const isMobile = (this.displayWidth || 800) <= 768;
+        const msgWidth = isMobile ? Math.min(350, (this.displayWidth || 800) - 40) : 400;
+        const msgHeight = isMobile ? 180 : 200;
+        const msgX = ((this.displayWidth || 800) - msgWidth) / 2;
+        const msgY = ((this.displayHeight || 600) - msgHeight) / 2;
         
         // Slack window background
         this.ctx.fillStyle = '#ffffff';
@@ -1622,15 +1840,16 @@ class GitOverItGame {
         this.ctx.fillStyle = '#4a154b';
         this.ctx.fillRect(msgX, msgY, msgWidth, 40);
         
-        // Slack logo area
+        // Slack logo area - responsive font sizes
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 16px Arial';
+        this.ctx.font = `bold ${isMobile ? '14px' : '16px'} Arial`;
         this.ctx.fillText('💬 Slack', msgX + 15, msgY + 25);
         
-        // Close button
+        // Close button - larger on mobile for easier tapping
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 20px Arial';
-        this.ctx.fillText('×', msgX + msgWidth - 30, msgY + 28);
+        this.ctx.font = `bold ${isMobile ? '24px' : '20px'} Arial`;
+        const closeButtonSize = isMobile ? 40 : 30;
+        this.ctx.fillText('×', msgX + msgWidth - closeButtonSize + 5, msgY + 28);
         
         // Message content area
         this.ctx.fillStyle = '#f8f8f8';
@@ -1638,18 +1857,18 @@ class GitOverItGame {
         
         // Sender info
         this.ctx.fillStyle = '#1d1c1d';
-        this.ctx.font = 'bold 14px Arial';
+        this.ctx.font = `bold ${isMobile ? '12px' : '14px'} Arial`;
         this.ctx.fillText(this.activeSlackMessage.sender, msgX + 20, msgY + 75);
         
         // Timestamp and urgency
         this.ctx.fillStyle = '#616061';
-        this.ctx.font = '12px Arial';
+        this.ctx.font = `${isMobile ? '10px' : '12px'} Arial`;
         this.ctx.fillText(this.activeSlackMessage.timestamp, msgX + 20, msgY + 95);
         this.ctx.fillText(this.activeSlackMessage.urgency, msgX + msgWidth - 40, msgY + 75);
         
         // Message text (word wrap)
         this.ctx.fillStyle = '#1d1c1d';
-        this.ctx.font = '13px Arial';
+        this.ctx.font = `${isMobile ? '11px' : '13px'} Arial`;
         const words = this.activeSlackMessage.message.split(' ');
         let line = '';
         let lineY = msgY + 115;
@@ -1667,24 +1886,40 @@ class GitOverItGame {
         });
         this.ctx.fillText(line, msgX + 20, lineY);
         
-        // Dismiss button
-        this.ctx.fillStyle = '#007a5a';
-        this.ctx.fillRect(msgX + msgWidth - 80, msgY + msgHeight - 35, 60, 25);
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 12px Arial';
-        this.ctx.fillText('Dismiss', msgX + msgWidth - 72, msgY + msgHeight - 20);
+        // Dismiss button - larger on mobile
+        const dismissButtonWidth = isMobile ? 80 : 60;
+        const dismissButtonHeight = isMobile ? 35 : 25;
+        const dismissButtonX = msgX + msgWidth - dismissButtonWidth - 10;
+        const dismissButtonY = msgY + msgHeight - dismissButtonHeight - 10;
         
-        // Store click area for the close/dismiss buttons
+        this.ctx.fillStyle = '#007a5a';
+        this.ctx.fillRect(dismissButtonX, dismissButtonY, dismissButtonWidth, dismissButtonHeight);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = `bold ${isMobile ? '10px' : '12px'} Arial`;
+        
+        // Calculate proper center position for text
+        const dismissText = 'Dismiss';
+        const textMetrics = this.ctx.measureText(dismissText);
+        const textWidth = textMetrics.width;
+        const fontSize = isMobile ? 10 : 12;
+        
+        // Center the text horizontally and vertically
+        const textX = dismissButtonX + (dismissButtonWidth - textWidth) / 2;
+        const textY = dismissButtonY + (dismissButtonHeight / 2) + (fontSize / 3); // Slightly above center for better visual balance
+        
+        this.ctx.fillText(dismissText, textX, textY);
+        
+        // Store click area for the close/dismiss buttons - larger touch targets on mobile
         this.slackCloseArea = {
-            x: msgX + msgWidth - 80,
-            y: msgY + msgHeight - 35,
-            width: 60,
-            height: 25
+            x: dismissButtonX,
+            y: dismissButtonY,
+            width: dismissButtonWidth,
+            height: dismissButtonHeight
         };
         this.slackXArea = {
-            x: msgX + msgWidth - 40,
+            x: msgX + msgWidth - closeButtonSize,
             y: msgY,
-            width: 40,
+            width: closeButtonSize,
             height: 40
         };
         
