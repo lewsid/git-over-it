@@ -253,6 +253,16 @@ button {
     backface-visibility: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Ensure buttons are touchable on mobile */
+    pointer-events: auto;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    min-height: 44px; /* iOS minimum touch target */
+    min-width: 44px;
+}
+
+/* Touch action for regular UI buttons only (not attack button) */
+button:not(#attackButton) {
+    touch-action: manipulation;
 }
 
 button::before {
@@ -365,6 +375,11 @@ button:active {
     justify-content: center;
     margin: 0;
     padding: 0;
+    /* Allow custom touch handling */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Responsive Design */
@@ -387,14 +402,38 @@ button:active {
         display: flex;
     }
 
+    #startScreen, #gameOverScreen {
+        padding: 15px;
+        /* Ensure content is scrollable if needed */
+        overflow-y: auto;
+        /* Fix for iOS viewport units */
+        height: 100vh;
+        height: -webkit-fill-available;
+    }
+
     #startScreen h1, #gameOverScreen h1 {
         font-size: 2rem;
+        margin-top: 20px;
     }
 
     .instructions {
         font-size: 0.9rem;
         padding: 15px;
         max-width: 90vw;
+        /* Ensure instructions don't push button off screen */
+        max-height: 40vh;
+        overflow-y: auto;
+    }
+
+    /* Ensure start button is always accessible */
+    #startButton, #restartButton {
+        font-size: 1.1rem !important;
+        padding: 18px 36px !important;
+        margin: 20px 10px !important;
+        min-height: 50px !important;
+        /* Make sure button stays on screen */
+        position: relative;
+        z-index: 1000;
     }
 
     #gameUI {

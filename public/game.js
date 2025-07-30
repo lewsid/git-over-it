@@ -91,8 +91,13 @@ class GitOverItGame {
             if (this.activeSlackMessage) {
                 const rect = this.canvas.getBoundingClientRect();
                 // Get coordinates from either click or touch event
-                const clientX = event.clientX || (event.touches && event.touches[0] ? event.touches[0].clientX : 0);
-                const clientY = event.clientY || (event.touches && event.touches[0] ? event.touches[0].clientY : 0);
+                // For touchend events, use changedTouches since touches array is empty when finger lifts
+                const clientX = event.clientX || 
+                    (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientX : 
+                    (event.touches && event.touches[0] ? event.touches[0].clientX : 0));
+                const clientY = event.clientY || 
+                    (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientY : 
+                    (event.touches && event.touches[0] ? event.touches[0].clientY : 0));
                 
                 // Convert screen coordinates to display coordinates
                 const clickX = (clientX - rect.left) * ((this.displayWidth || 800) / rect.width);
@@ -479,15 +484,27 @@ class GitOverItGame {
         // Touch controls for mobile
         this.setupTouchControls();
         
-        // UI buttons
-        document.getElementById('startButton').addEventListener('click', () => {
+        // UI buttons - add both click and touch events for mobile compatibility
+        const startButton = document.getElementById('startButton');
+        const startGameHandler = () => {
             this.startGame();
+        };
+        startButton.addEventListener('click', startGameHandler);
+        startButton.addEventListener('touchend', (e) => {
+            e.preventDefault(); // Prevent double-firing with click event
+            startGameHandler();
         });
         
-        document.getElementById('restartButton').addEventListener('click', () => {
+        const restartButton = document.getElementById('restartButton');
+        const restartGameHandler = () => {
             this.currentLevel = 1; // Reset to level 1
             this.resetGame();
             this.startGame();
+        };
+        restartButton.addEventListener('click', restartGameHandler);
+        restartButton.addEventListener('touchend', (e) => {
+            e.preventDefault(); // Prevent double-firing with click event
+            restartGameHandler();
         });
         
         document.getElementById('nextLevelButton').addEventListener('click', () => {
