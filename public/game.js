@@ -18,8 +18,10 @@ class GitOverItGame {
         this.player = {
             x: 400,
             y: 500,
-            width: 60,
-            height: 60,
+            width: 45,      // Collision hitbox (smaller for forgiving gameplay)
+            height: 45,     // Collision hitbox (smaller for forgiving gameplay)
+            renderWidth: 60,   // Visual rendering size (original size)
+            renderHeight: 60,  // Visual rendering size (original size)
             health: 150,
             maxHealth: 150,
             speed: 200,
@@ -29,8 +31,11 @@ class GitOverItGame {
             hasHitThisSwing: false, // Prevent multiple hits per swing
             direction: 1, // 1 for right, -1 for left
             velocityY: 0,
+            knockbackX: 0, // Add knockback for when hit by enemies
             onGround: true,
-            hasWon: false
+            hasWon: false,
+            isDying: false, // For death animation
+            deathTimer: 0   // For death animation timing
         };
         
         // Game objects
@@ -446,18 +451,11 @@ class GitOverItGame {
         document.getElementById('backToMenuButton').addEventListener('click', () => {
             document.getElementById('creditsScreen').style.display = 'none';
             
-            // Return to previous state or default to start screen
-            if (this.previousGameState === 'playing') {
-                // If coming from game, pause and show start screen
-                this.gameState = 'start';
-                document.getElementById('startScreen').style.display = 'flex';
-            } else if (this.previousGameState === 'gameOver') {
-                this.gameState = 'gameOver';
-                document.getElementById('gameOverScreen').style.display = 'flex';
-            } else {
-                this.gameState = 'start';
-                document.getElementById('startScreen').style.display = 'flex';
-            }
+            // Always reset to a clean start state when leaving credits
+            this.gameState = 'start';
+            this.currentLevel = 1;
+            this.resetGame(); // Fully reset the game to clean up the final level
+            document.getElementById('startScreen').style.display = 'flex';
             
             this.previousGameState = null;
         });
@@ -625,8 +623,8 @@ class GitOverItGame {
                 this.goals.push({
                     x: platform.x + platform.width - 40,
                     y: platform.y - 30,
-                    width: 30,
-                    height: 30,
+                    width: 35,  // Larger goals for easier collection
+                    height: 35, // Larger goals for easier collection
                     collected: false,
                     emoji: goalEmojis[goalIndex]
                 });
@@ -639,8 +637,8 @@ class GitOverItGame {
             this.goals.push({
                 x: finalPlatform.x + finalPlatform.width/2 - 15,
                 y: finalPlatform.y - 30,
-                width: 30,
-                height: 30,
+                width: 35,  // Larger final goal for easier collection
+                height: 35, // Larger final goal for easier collection
                 collected: false,
                 emoji: '🎯'
             });
@@ -703,8 +701,10 @@ class GitOverItGame {
                     speed: enemyType.speed * this.levelConfig.enemySpeed,
                     x: platform.x + Math.random() * (platform.width - 40),
                     y: platform.y - 40,
-                    width: 40,
-                    height: 40,
+                    width: 30,         // Collision hitbox (forgiving)
+                    height: 30,        // Collision hitbox (forgiving)
+                    renderWidth: 40,   // Visual size (normal)
+                    renderHeight: 40,  // Visual size (normal)
                     maxHealth: enemyType.health,
                     direction: Math.random() < 0.5 ? -1 : 1,
                     platformIndex: index + 1,
@@ -738,8 +738,10 @@ class GitOverItGame {
                 points: 100 * this.currentLevel,
                 x: bossPlatform.x + bossPlatform.width / 2 - 30,
                 y: bossPlatform.y - 60,
-                width: 60,
-                height: 60,
+                width: 45,         // Collision hitbox (forgiving)
+                height: 45,        // Collision hitbox (forgiving)
+                renderWidth: 60,   // Visual size (normal)
+                renderHeight: 60,  // Visual size (normal)
                 direction: 1,
                 platformIndex: this.platforms.length - 1,
                 alive: true,
@@ -768,8 +770,10 @@ class GitOverItGame {
         this.player = {
             x: 400,
             y: 500,
-            width: 60,
-            height: 60,
+            width: 45,      // Collision hitbox (forgiving)
+            height: 45,     // Collision hitbox (forgiving)
+            renderWidth: 60,   // Visual size (normal)
+            renderHeight: 60,  // Visual size (normal)
             health: 150,
             maxHealth: 150,
             speed: 200,
@@ -779,8 +783,11 @@ class GitOverItGame {
             hasHitThisSwing: false,
             direction: 1,
             velocityY: 0,
+            knockbackX: 0,
             onGround: true,
-            hasWon: false
+            hasWon: false,
+            isDying: false,
+            deathTimer: 0
         };
         
         this.score = 0;
@@ -806,7 +813,7 @@ class GitOverItGame {
     }
     
     handleInput(deltaTime) {
-        if (this.gameState !== 'playing' || this.activeSlackMessage) return;
+        if (this.gameState !== 'playing' || this.activeSlackMessage || this.player.isDying) return;
         
         let moveX = 0;
         let jump = false;
@@ -840,6 +847,24 @@ class GitOverItGame {
                 // If we're already colliding, allow movement that reduces overlap
                 const currentlyColliding = this.checkRectCollision(currentPlayerRect, enemyRect);
                 const wouldCollide = this.checkRectCollision(futurePlayerRect, enemyRect);
+                
+                                                // Deal damage when player collides with enemy (more forgiving)
+                                const playerDistance = Math.abs(this.player.x - enemy.x);
+                                if ((currentlyColliding || wouldCollide) && playerDistance < 40 && enemy.hitCooldown <= 0) {
+                                    this.player.health -= 25;
+                                    enemy.hitCooldown = 1.5;
+                                    
+                                    // Add knockback to player
+                                    const knockbackDirection = this.player.x < enemy.x ? -1 : 1;
+                                    this.player.knockbackX = knockbackDirection * 150;
+                                    
+                                    this.createHitParticles(this.player.x + this.player.width/2, this.player.y + this.player.height/2);
+                                    this.playSound('playerHit');
+                                    this.screenShake = 0.3;
+                                    
+                                    // Create floating damage text
+                                    this.createFloatingText('-25 HP', this.player.x + this.player.width/2, this.player.y, '#ff4444');
+                                }
                 
                 if (wouldCollide && !currentlyColliding) {
                     // Block new collisions
@@ -876,7 +901,7 @@ class GitOverItGame {
     }
     
     handleAttack() {
-        if (this.gameState !== 'playing' || this.player.attackCooldown > 0) return;
+        if (this.gameState !== 'playing' || this.player.attackCooldown > 0 || this.player.isDying) return;
         
         this.player.isAttacking = true;
         this.player.attackProgress = 0;
@@ -961,24 +986,36 @@ class GitOverItGame {
     updatePhysics(deltaTime) {
         if (this.gameState !== 'playing') return;
         
-        // Gravity
+        // Apply knockback (only if not dying)
+        if (this.player.knockbackX !== 0 && !this.player.isDying) {
+            this.player.x += this.player.knockbackX * deltaTime;
+            this.player.knockbackX *= (1 - deltaTime * 4); // Decay knockback faster than enemies
+            if (Math.abs(this.player.knockbackX) < 10) this.player.knockbackX = 0;
+            
+            // Keep player on screen during knockback
+            this.player.x = Math.max(0, Math.min(this.canvas.width - this.player.width, this.player.x));
+        }
+        
+        // Gravity (always apply, even when dying)
         this.player.velocityY += 1200 * deltaTime; // gravity
         this.player.y += this.player.velocityY * deltaTime;
         
-        // Platform collision
-        this.player.onGround = false;
-        this.platforms.forEach(platform => {
-            if (this.player.x < platform.x + platform.width &&
-                this.player.x + this.player.width > platform.x &&
-                this.player.y + this.player.height > platform.y &&
-                this.player.y + this.player.height < platform.y + platform.height + 10 &&
-                this.player.velocityY >= 0) {
-                
-                this.player.y = platform.y - this.player.height;
-                this.player.velocityY = 0;
-                this.player.onGround = true;
-            }
-        });
+        // Platform collision (disabled when dying)
+        if (!this.player.isDying) {
+            this.player.onGround = false;
+            this.platforms.forEach(platform => {
+                if (this.player.x < platform.x + platform.width &&
+                    this.player.x + this.player.width > platform.x &&
+                    this.player.y + this.player.height > platform.y &&
+                    this.player.y + this.player.height < platform.y + platform.height + 10 &&
+                    this.player.velocityY >= 0) {
+                    
+                    this.player.y = platform.y - this.player.height;
+                    this.player.velocityY = 0;
+                    this.player.onGround = true;
+                }
+            });
+        }
         
         // Update camera to follow player with screen shake
         let targetCameraY = Math.max(0, Math.min(200, 600 - this.player.y - 300));
@@ -1035,13 +1072,18 @@ class GitOverItGame {
         }
         
         // Check for death
-        if (this.player.y > 650) {
+        if (this.player.y > 650 && !this.player.isDying) {
             this.player.health = 0;
         }
         
-        if (this.player.health <= 0) {
-            this.playSound('gameOver');
-            this.endGame();
+        // Start death animation when player dies
+        if (this.player.health <= 0 && !this.player.isDying) {
+            this.startDeathAnimation();
+        }
+        
+        // Update death animation
+        if (this.player.isDying) {
+            this.updateDeathAnimation(deltaTime);
         }
     }
     
@@ -1111,8 +1153,7 @@ class GitOverItGame {
                     if (enemy.knockbackX === 0) { // Only move normally if not being knocked back
                         const newX = enemy.x + enemy.direction * moveSpeed * deltaTime;
                         
-                        // Check collision with player - similar logic to player movement
-                        let canMove = true;
+                        // Simple collision detection with immediate damage
                         const currentEnemyRect = { x: enemy.x, y: enemy.y, width: enemy.width, height: enemy.height };
                         const futureEnemyRect = { x: newX, y: enemy.y, width: enemy.width, height: enemy.height };
                         const playerRect = { x: this.player.x, y: this.player.y, width: this.player.width, height: this.player.height };
@@ -1120,32 +1161,38 @@ class GitOverItGame {
                         const currentlyColliding = this.checkRectCollision(currentEnemyRect, playerRect);
                         const wouldCollide = this.checkRectCollision(futureEnemyRect, playerRect);
                         
-                        if (wouldCollide && !currentlyColliding) {
-                            // Block new collisions and attack
+                        // Check horizontal and vertical distances separately for better collision
+                        const playerCenterX = this.player.x + this.player.width/2;
+                        const playerCenterY = this.player.y + this.player.height/2;
+                        const enemyCenterX = enemy.x + enemy.width/2;
+                        const enemyCenterY = enemy.y + enemy.height/2;
+                        
+                        const horizontalDistance = Math.abs(playerCenterX - enemyCenterX);
+                        const verticalDistance = Math.abs(playerCenterY - enemyCenterY);
+                        
+                        // Much more forgiving collision distances
+                        const isClose = horizontalDistance < 50 && verticalDistance < 30;
+                        
+                                                 if (isClose && enemy.hitCooldown <= 0) {
+                            this.player.health -= 25;
+                            enemy.hitCooldown = 1.5;
+                            
+                            // Add knockback to player
+                            const knockbackDirection = this.player.x < enemy.x ? -1 : 1;
+                            this.player.knockbackX = knockbackDirection * 150;
+                            
+                            this.createHitParticles(this.player.x + this.player.width/2, this.player.y + this.player.height/2);
+                            this.playSound('playerHit');
+                            this.screenShake = 0.3;
+                            
+                            // Create floating damage text
+                            this.createFloatingText('-25 HP', this.player.x + this.player.width/2, this.player.y, '#ff4444');
+                        }
+                        
+                        // Simple movement blocking - don't move into player
+                        let canMove = true;
+                        if (wouldCollide) {
                             canMove = false;
-                            const playerDistance = Math.abs(this.player.x - enemy.x);
-                            if (playerDistance < 60 && enemy.hitCooldown <= 0) {
-                                this.player.health -= 25;
-                                enemy.hitCooldown = 1.5;
-                                this.createHitParticles(this.player.x + this.player.width/2, this.player.y + this.player.height/2);
-                                this.playSound('playerHit');
-                                this.screenShake = 0.3;
-                                
-                                // Create floating damage text
-                                this.createFloatingText('-25 HP', this.player.x + this.player.width/2, this.player.y, '#ff4444');
-                            }
-                        } else if (currentlyColliding && wouldCollide) {
-                            // Allow movement that reduces overlap
-                            const playerCenterX = this.player.x + this.player.width / 2;
-                            const enemyCenterX = enemy.x + enemy.width / 2;
-                            const futureCenterX = newX + enemy.width / 2;
-                            
-                            const currentDistance = Math.abs(enemyCenterX - playerCenterX);
-                            const futureDistance = Math.abs(futureCenterX - playerCenterX);
-                            
-                            if (futureDistance < currentDistance) {
-                                canMove = false; // Don't move closer
-                            }
                         }
                         
                         if (canMove) {
@@ -1183,9 +1230,9 @@ class GitOverItGame {
     }
     
     checkAttackHits() {
-        // Create sword hitbox based on player position and direction
-        const swordReach = 70;
-        const swordWidth = 50;
+        // Create sword hitbox based on player position and direction (more generous)
+        const swordReach = 80;  // Increased reach for easier combat
+        const swordWidth = 60;  // Wider sword hitbox
         
         let swordX, swordY, swordW, swordH;
         
@@ -1225,7 +1272,7 @@ class GitOverItGame {
             const dy = goal.y + goal.height/2 - (this.player.y + this.player.height/2);
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < 40) {
+            if (distance < 50) {  // More forgiving goal collection
                 goal.collected = true;
                 this.score += 50; // Bonus points for goals
                 this.createGoalEffect(goal.x + goal.width/2, goal.y + goal.height/2);
@@ -1726,14 +1773,20 @@ class GitOverItGame {
         this.enemies.forEach(enemy => {
             if (!enemy.alive) return;
             
-            // Calculate position offsets first
+            // Calculate position offsets and render positions
             const fontSize = enemy.type === 'boss' ? '36px' : '24px';
             let xOffset = enemy.type === 'boss' ? 12 : 8;
             let yOffset = enemy.type === 'boss' ? 42 : 28;
             
+            // Center visual rendering on collision hitbox
+            const renderOffsetX = (enemy.renderWidth - enemy.width) / 2;
+            const renderOffsetY = (enemy.renderHeight - enemy.height) / 2;
+            const renderX = enemy.x - renderOffsetX;
+            const renderY = enemy.y - renderOffsetY;
+            
             // Enhanced damage and glow effect
             this.ctx.save();
-            const pulseIntensity = Math.sin(Date.now() * 0.008) * 0.3 + 0.7; // 0.4 to 1.0
+            const pulseIntensity = Math.sin(Date.now() * 0.012) * 0.6 + 0.4; // 0.0 to 1.0 - much wider range
             
             if (enemy.hitCooldown > 0) {
                 // DRAMATIC damage effect - much more pronounced
@@ -1743,11 +1796,11 @@ class GitOverItGame {
                 this.ctx.shadowColor = '#ffffff';
                 this.ctx.shadowBlur = 40 * damageIntensity;
                 this.ctx.font = `${fontSize} Arial`;
-                this.ctx.fillText(enemy.emoji, enemy.x + xOffset, enemy.y + yOffset);
+                this.ctx.fillText(enemy.emoji, renderX + xOffset, renderY + yOffset);
                 
                 this.ctx.shadowColor = '#ff0000';
                 this.ctx.shadowBlur = 30 * damageIntensity;
-                this.ctx.fillText(enemy.emoji, enemy.x + xOffset, enemy.y + yOffset);
+                this.ctx.fillText(enemy.emoji, renderX + xOffset, renderY + yOffset);
                 
                 this.ctx.shadowColor = '#ffff00';
                 this.ctx.shadowBlur = 20 * damageIntensity;
@@ -1757,25 +1810,32 @@ class GitOverItGame {
                 this.ctx.globalAlpha = damageIntensity * 0.8;
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.font = 'bold 14px Arial';
-                this.ctx.fillText('-25', enemy.x + enemy.width/2 + (Math.random() - 0.5) * 20, enemy.y - 15 - (1 - damageIntensity) * 20);
+                this.ctx.fillText('-25', renderX + enemy.renderWidth/2 + (Math.random() - 0.5) * 20, renderY - 15 - (1 - damageIntensity) * 20);
                 this.ctx.restore();
                 
                 // Damage particles/sparks
                 if (Math.random() < 0.3) {
-                    this.createHitParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2);
+                    this.createHitParticles(renderX + enemy.renderWidth/2, renderY + enemy.renderHeight/2);
                 }
             } else {
-                // Pulsing red glow normally
+                // Much more pronounced pulsing red glow
                 const glowIntensity = Math.floor(pulseIntensity * 255).toString(16).padStart(2, '0');
                 this.ctx.shadowColor = `#ff${glowIntensity}${glowIntensity}`;
-                this.ctx.shadowBlur = 8 + (pulseIntensity * 8); // 8-16px blur
+                this.ctx.shadowBlur = 15 + (pulseIntensity * 25); // 15-40px blur - much more dramatic
+                
+                // Add second layer of glow for more intensity
+                this.ctx.fillText(enemy.emoji, renderX + xOffset, renderY + yOffset);
+                
+                // Third layer with pure red for maximum impact
+                this.ctx.shadowColor = '#ff0000';
+                this.ctx.shadowBlur = 5 + (pulseIntensity * 15); // 5-20px blur
             }
             
             // Set font for emoji rendering
             this.ctx.font = `${fontSize} Arial`;
             
             // Render enemy emoji (always visible)
-            this.ctx.fillText(enemy.emoji, enemy.x + xOffset, enemy.y + yOffset);
+            this.ctx.fillText(enemy.emoji, renderX + xOffset, renderY + yOffset);
             
             // Spotted indicator when enemy has seen player
             if (enemy.hasSeenPlayer && enemy.aiState !== 'patrol') {
@@ -1791,13 +1851,13 @@ class GitOverItGame {
                     this.ctx.font = 'bold 20px Arial';
                     this.ctx.shadowColor = '#ffff00';
                     this.ctx.shadowBlur = 10;
-                    this.ctx.fillText('!', enemy.x + enemy.width/2 - 6 + shakeX, enemy.y - 10 + shakeY);
+                    this.ctx.fillText('!', renderX + enemy.renderWidth/2 - 6 + shakeX, renderY - 10 + shakeY);
                     
                     // Additional visual effects during startle
                     this.ctx.strokeStyle = '#ff4444';
                     this.ctx.lineWidth = 2;
                     this.ctx.beginPath();
-                    this.ctx.arc(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 30 + enemy.startleProgress * 10, 0, Math.PI * 2);
+                    this.ctx.arc(renderX + enemy.renderWidth/2, renderY + enemy.renderHeight/2, 30 + enemy.startleProgress * 10, 0, Math.PI * 2);
                     this.ctx.stroke();
                 } else if (enemy.aiState === 'aggressive') {
                     // When aggressive - show smaller exclamation indicator
@@ -1805,7 +1865,7 @@ class GitOverItGame {
                     this.ctx.font = 'bold 12px Arial';
                     this.ctx.shadowColor = '#ff6666';
                     this.ctx.shadowBlur = 5;
-                    this.ctx.fillText('!', enemy.x + enemy.width/2 - 3, enemy.y - 5);
+                    this.ctx.fillText('!', renderX + enemy.renderWidth/2 - 3, renderY - 5);
                 }
                 
                 this.ctx.restore();
@@ -1814,12 +1874,12 @@ class GitOverItGame {
             this.ctx.restore(); // Always restore since we always apply glow
             
             // Health bar
-            const healthBarWidth = enemy.width;
+            const healthBarWidth = enemy.renderWidth;
             const healthPercent = enemy.health / enemy.maxHealth;
             this.ctx.fillStyle = '#666666';
-            this.ctx.fillRect(enemy.x, enemy.y - 8, healthBarWidth, 4);
+            this.ctx.fillRect(renderX, renderY - 8, healthBarWidth, 4);
             this.ctx.fillStyle = healthPercent > 0.5 ? '#44ff44' : '#ff4444';
-            this.ctx.fillRect(enemy.x, enemy.y - 8, healthBarWidth * healthPercent, 4);
+            this.ctx.fillRect(renderX, renderY - 8, healthBarWidth * healthPercent, 4);
         });
     }
     
@@ -1841,31 +1901,37 @@ class GitOverItGame {
     }
     
     renderPlayer() {
-        const { x, y, width, height, direction, isAttacking, attackProgress } = this.player;
+        const { x, y, width, height, renderWidth, renderHeight, direction, isAttacking, attackProgress } = this.player;
+        
+        // Calculate visual offset to center the larger render size on the smaller hitbox
+        const offsetX = (renderWidth - width) / 2;
+        const offsetY = (renderHeight - height) / 2;
+        const renderX = x - offsetX;
+        const renderY = y - offsetY;
         
         // Draw octopus asset (no purple box!)
         if (this.assets.octopus) {
             this.ctx.save();
             if (direction < 0) {
                 this.ctx.scale(-1, 1);
-                this.ctx.drawImage(this.assets.octopus, -(x + width), y, width, height);
+                this.ctx.drawImage(this.assets.octopus, -(renderX + renderWidth), renderY, renderWidth, renderHeight);
             } else {
-                this.ctx.drawImage(this.assets.octopus, x, y, width, height);
+                this.ctx.drawImage(this.assets.octopus, renderX, renderY, renderWidth, renderHeight);
             }
             this.ctx.restore();
         } else {
             // Fallback if image doesn't load - just draw a simple octopus shape
             this.ctx.fillStyle = '#9333ea';
-            this.ctx.fillRect(x, y, width, height);
+            this.ctx.fillRect(renderX, renderY, renderWidth, renderHeight);
         }
         
         // Draw sword - always visible, enhanced during attack
         if (this.assets.sword) {
             this.ctx.save();
             
-            // Calculate sword position and rotation
-            const centerX = x + width / 2;
-            const centerY = y + height / 2;
+            // Calculate sword position and rotation (using render dimensions for positioning)
+            const centerX = renderX + renderWidth / 2;
+            const centerY = renderY + renderHeight / 2;
             
             let currentAngle, swordOpacity, swordWidth, swordHeight;
             
@@ -1971,6 +2037,11 @@ class GitOverItGame {
     endGame() {
         this.gameState = 'gameOver';
         document.getElementById('finalScore').textContent = this.score;
+        
+        // Calculate Velocity score (agile development performance rating)
+        const velocityScore = this.calculateVelocityScore();
+        document.getElementById('velocityScore').textContent = velocityScore;
+        
         document.getElementById('gameOverScreen').style.display = 'flex';
         
         const gameOverScreen = document.getElementById('gameOverScreen');
@@ -1983,11 +2054,11 @@ class GitOverItGame {
         
         if (this.player.hasWon) {
             if (this.currentLevel < this.maxLevel) {
-                h1Element.innerHTML = `<strong>✅ LEVEL ${this.currentLevel} COMPLETE! 🎉</strong>`;
-                pElement.textContent = `Pull request approved! Ready for level ${this.currentLevel + 1}?`;
+                h1Element.innerHTML = `<strong>✅ LEVEL <strong>${this.currentLevel}</strong> COMPLETE! 🎉</strong>`;
+                pElement.innerHTML = `Pull request approved!<br><br>Ready for level <strong>${this.currentLevel + 1}</strong>?`;
                 nextLevelButton.style.display = 'inline-block';
                 creditsButton.style.display = 'none';
-                restartButton.textContent = 'Restart Game';
+                restartButton.style.display = 'none'; // Hide restart button on level completion
             } else {
                 // Final victory - calculate completion time
                 this.gameCompletionTime = Date.now();
@@ -1996,23 +2067,88 @@ class GitOverItGame {
                 const seconds = totalTime % 60;
                 
                 h1Element.innerHTML = '<strong>🚀 YOU SHIPPED IT! 🎉</strong>';
-                pElement.innerHTML = `<strong>Congratulations!</strong> You've mastered all 5 levels and successfully shipped the entire Laravel codebase to production!<br><br><strong>⏱️ Total Time: ${minutes}:${seconds.toString().padStart(2, '0')}</strong>`;
+                pElement.innerHTML = `<strong>Congratulations!</strong><br><br>You've mastered all <strong>5</strong> levels and successfully shipped the entire Laravel codebase to production!<br><br><strong>⏱️ Total Time: </strong><strong>${minutes}:${seconds.toString().padStart(2, '0')}</strong>`;
                 nextLevelButton.style.display = 'none';
                 creditsButton.style.display = 'inline-block';
+                restartButton.style.display = 'inline-block';
                 restartButton.textContent = 'Ship Again!';
             }
         } else if (this.player.health <= 0) {
             h1Element.innerHTML = '<strong>💥 FATAL ERROR 💥</strong>';
-            pElement.textContent = 'Your code was corrupted by bugs! Time to debug and try again.';
+            pElement.innerHTML = 'Your code was corrupted by bugs!<br><br>Time to debug and try again.';
             nextLevelButton.style.display = 'none';
             creditsButton.style.display = 'none';
-            restartButton.textContent = 'Try Again';
+            restartButton.style.display = 'inline-block';
+            restartButton.textContent = 'Debug & Restart';
         } else {
             h1Element.innerHTML = '<strong>⚠️ DEPLOYMENT FAILED ⚠️</strong>';
-            pElement.textContent = 'Something went wrong in the pipeline. Check your logs and retry!';
+            pElement.innerHTML = 'Something went wrong in the pipeline.<br><br>Check your logs and retry!';
             nextLevelButton.style.display = 'none';
             creditsButton.style.display = 'none';
-            restartButton.textContent = 'Try Again';
+            restartButton.style.display = 'inline-block';
+            restartButton.textContent = 'Retry Deployment';
+        }
+    }
+    
+    startDeathAnimation() {
+        this.player.isDying = true;
+        this.player.deathTimer = 0;
+        this.player.velocityY = -400; // Jump up like Mario
+        this.player.knockbackX = 0; // Stop any knockback
+        this.playSound('gameOver');
+    }
+    
+    updateDeathAnimation(deltaTime) {
+        this.player.deathTimer += deltaTime;
+        
+        // After 2 seconds of death animation, or when player falls below screen
+        if (this.player.deathTimer > 2.0 || this.player.y > 700) {
+            this.endGame();
+        }
+    }
+    
+    calculateVelocityScore() {
+        // If game wasn't completed successfully, return lowest rating
+        if (!this.player.hasWon || !this.gameStartTime) {
+            return "F (Feature Freeze)";
+        }
+        
+        // Calculate total completion time in seconds
+        const completionTime = (Date.now() - this.gameStartTime) / 1000;
+        const minutes = Math.floor(completionTime / 60);
+        const seconds = Math.floor(completionTime % 60);
+        
+        // Time-based velocity ratings (get harder with each level)
+        const levelMultiplier = this.currentLevel;
+        
+        // Base time thresholds (in seconds) - gets progressively harder
+        const baseThresholds = {
+            sPlus: 15 * levelMultiplier,     // S+ (Scrum Master) - Under 15s per level
+            s: 25 * levelMultiplier,        // S (Sprint Hero) - Under 25s per level  
+            a: 35 * levelMultiplier,        // A (Agile Ace) - Under 35s per level
+            b: 50 * levelMultiplier,        // B (Backlog Burner) - Under 50s per level
+            c: 75 * levelMultiplier,        // C (Code Crawler) - Under 75s per level
+            d: 120 * levelMultiplier        // D (Debug Drifter) - Under 2 min per level
+        };
+        
+        // Add time display to the rating
+        const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Determine rating based on completion time
+        if (completionTime <= baseThresholds.sPlus) {
+            return `S+ (Scrum Master) - ${timeString}`;
+        } else if (completionTime <= baseThresholds.s) {
+            return `S (Sprint Hero) - ${timeString}`;
+        } else if (completionTime <= baseThresholds.a) {
+            return `A (Agile Ace) - ${timeString}`;
+        } else if (completionTime <= baseThresholds.b) {
+            return `B (Backlog Burner) - ${timeString}`;
+        } else if (completionTime <= baseThresholds.c) {
+            return `C (Code Crawler) - ${timeString}`;
+        } else if (completionTime <= baseThresholds.d) {
+            return `D (Debug Drifter) - ${timeString}`;
+        } else {
+            return `F (Feature Freeze) - ${timeString}`;
         }
     }
     

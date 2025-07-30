@@ -16,10 +16,10 @@
         <div id="gameUI">
             <div id="healthBar">
                 <div id="healthFill"></div>
-                <span>HP</span>
+                <span>Health</span>
             </div>
             <div id="scoreDisplay">
-                <span>Bugs Slayed: <span id="score">0</span></span>
+                <span>Bugs Slain: <span id="score">0</span></span>
             </div>
             <div id="floorDisplay">
                 <span>Level: <span id="level">1</span></span>
@@ -47,7 +47,8 @@
         <div id="gameOverScreen" style="display: none;">
             <h1 class="gradient-title">Mission Complete! 🎉</h1>
             <p>You got over it and shipped the code!</p>
-            <p>Final Score: <span id="finalScore">0</span> bugs slayed</p>
+            <p>Current Score: <strong><span id="finalScore">0</span></strong> bugs slain</p>
+            <p>Velocity Rating: <strong><span id="velocityScore">0</span></strong> ⚡</p>
             <div id="gameOverButtons">
                 <button id="nextLevelButton" style="display: none;">Next Level! 🚀</button>
                 <button id="creditsButton" style="display: none;">Credits 🎬</button>
