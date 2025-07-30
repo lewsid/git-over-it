@@ -1,4 +1,4 @@
-# 🐙 Tighten Tower - Code Climbing Adventure
+# 🐙 Git Over It - Code Climbing Adventure
 
 An epic browser-based game where an octopus developer armed with a sword must ascend a tower of legacy code, battling programming enemies and shipping clean code to reach the summit!
 
@@ -20,7 +20,7 @@ This project is configured to run locally using DDEV:
 ddev start
 
 # The game will be available at:
-# http://tighten-game.ddev.site
+# http://git-over-it.ddev.site
 ```
 
 ## 🎯 How to Play
@@ -37,16 +37,17 @@ ddev start
 
 ### Objective
 1. Climb the tower by jumping between platforms
-2. Battle programming enemies with your sword
-3. Each defeated enemy commits code to the background
-4. Reach Floor 8 (the summit) to ship your code and win!
-5. Avoid falling off platforms or taking too much damage
+2. Slay programming enemies with your sword
+3. Collect goals to commit code and advance levels
+4. Complete all 5 levels to ship your code and win!
+5. Watch out for distractions from your project manager!
+6. Avoid falling off platforms or taking too much damage
 
 ## 🎨 Game Assets
 
 The game uses two main visual assets:
 - `octopus-asset.png` - Our heroic developer octopus
-- `blade-asset.png` - The legendary debugging sword
+- `blade-right-asset.png` - The legendary debugging sword
 
 ## 🏗️ Technical Architecture
 
@@ -64,10 +65,14 @@ public/
 ### Game Engine Features
 - **Canvas Rendering**: Smooth 60fps HTML5 canvas graphics
 - **Physics System**: Gravity, collision detection, and platforming
-- **AI Enemies**: Smart enemy behavior and pathfinding
-- **Particle Effects**: Visual feedback for attacks and interactions
+- **AI Enemies**: Smart enemy behavior (patrol, startled, aggressive states)
+- **Particle Effects**: Visual feedback for attacks, hits, and goal collection
+- **Multi-Level System**: 5 levels with increasing difficulty
+- **Slack Interruptions**: Realistic project manager distractions
+- **Electric Neon Theme**: Modern cyberpunk visual design
 - **Responsive Design**: Adapts to any screen size
 - **Touch Controls**: Native mobile support
+- **Secret Features**: Hidden credits access (Shift+C)
 
 ### Modern Web Standards (2025)
 - ES6+ JavaScript with classes and async/await
@@ -88,10 +93,11 @@ public/
 
 ## 🏆 Scoring System
 
-- **Code Lines**: Points earned from defeating enemies
-- **Floor Progress**: Track your ascent up the tower
+- **Bugs Slayed**: Points earned from defeating enemies
+- **Level Progress**: Track your ascent through 5 levels
+- **Speedrun Timer**: Complete all levels as fast as possible
 - **Health Management**: Avoid damage to maximize your climb
-- **Victory Condition**: Reach Floor 8 with your octopus intact
+- **Victory Condition**: Complete all 5 levels to ship your code!
 
 ## 🔧 Development
 
@@ -111,8 +117,13 @@ Tested and optimized for:
 
 ## 🎊 Credits
 
-Created as an indie web game celebrating the trials and triumphs of software development. May your code be bug-free and your deployments smooth! 🚀
+**Developers:** Chris, Mitch, and Claude  
+**Brought to you by:** Bluehouse Group
+
+Created as an indie web game celebrating the trials and triumphs of software development. May your deployments be bug-free and your project managers be understanding! 🚀
+
+**Secret:** Press Shift+C anytime to view credits! 🤫
 
 ---
 
-**Happy Climbing!** 🐙⚔️ # git-over-it
+**Happy Climbing!** 🐙⚔️
