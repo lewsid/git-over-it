@@ -1,5 +1,5 @@
-// Modern JavaScript Game Engine for Tighten Tower
-class TightenTowerGame {
+// Modern JavaScript Game Engine for Git Over It
+class GitOverItGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -109,7 +109,7 @@ class TightenTowerGame {
                     this.createLevel();
         this.testPlatformReachability(); // Test the platform layout
         this.gameLoop();
-        console.log('Tighten Tower game initialized successfully!');
+        console.log('Git Over It game initialized successfully!');
         } catch (error) {
             console.error('Failed to initialize game:', error);
             // Show error message to user
@@ -1691,7 +1691,7 @@ class TightenTowerGame {
                 // Terminal prompt and commands
                 this.ctx.fillStyle = '#00ff41';
                 this.ctx.font = 'bold 10px monospace';
-                this.ctx.fillText('~/tighten-game$', platform.x + 8, platform.y + 15);
+                this.ctx.fillText('~/git-over-it$', platform.x + 8, platform.y + 15);
                 this.ctx.fillText('> npm run dev', platform.x + 8, platform.y + 28);
                 this.ctx.fillText('> Server running on localhost:3000', platform.x + 8, platform.y + 41);
                 this.ctx.fillText('> Ready for deployment...', platform.x + 8, platform.y + 54);
@@ -2034,5 +2034,5 @@ class TightenTowerGame {
 
 // Initialize game when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new TightenTowerGame();
+    new GitOverItGame();
 }); 

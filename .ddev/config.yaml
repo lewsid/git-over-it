@@ -1,4 +1,4 @@
-name: tighten-game
+name: git-over-it
 type: php
 docroot: public
 php_version: "8.2"
