@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# DDEV
+.ddev/.ddev-docker-compose-*
+.ddev/.webimageBuild
+.ddev/.dbimg
+.ddev/.dbimageBuild
+.ddev/.downloaded_docker_images
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Node modules (if using any build tools later)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/ 

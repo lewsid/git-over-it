@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Over It - Code Climbing Adventure</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preload" href="octopus-asset.png" as="image">
+    <link rel="preload" href="blade-right-asset.png" as="image">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <!-- Game UI Overlay -->
+        <div id="gameUI">
+            <div id="healthBar">
+                <div id="healthFill"></div>
+                <span>HP</span>
+            </div>
+            <div id="scoreDisplay">
+                <span>Bugs Slayed: <span id="score">0</span></span>
+            </div>
+            <div id="floorDisplay">
+                <span>Level: <span id="level">1</span></span>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="startScreen">
+            <h1 class="gradient-title">🐙 GIT OVER IT</h1>
+            <p class="subtitle">Slay bugs and climb the tower of code to ship it!</p>
+            <div class="instructions">
+                <h3>Controls:</h3>
+                <p><strong>Desktop:</strong> Arrow Keys/WASD to move, Space to swing sword</p>
+                <p><strong>Mobile:</strong> Touch joystick to move, tap attack button</p>
+                <h3>Mission:</h3>
+                <p>Slay bugs 🐛, git conflicts ⚡, legacy code 💩, and timeouts ⏰</p>
+                <p>Collect all goals 🚀💎⭐🏆👑💯🎯 to deploy to production!</p>
+                <p><strong>Warning:</strong> Enemies deal serious damage - avoid them!</p>
+                <p><strong>⚠️ Watch out for distractions from your project manager!</strong></p>
+            </div>
+            <button id="startButton">Start Climbing!</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" style="display: none;">
+            <h1 class="gradient-title">Mission Complete! 🎉</h1>
+            <p>You got over it and shipped the code!</p>
+            <p>Final Score: <span id="finalScore">0</span> bugs slayed</p>
+            <div id="gameOverButtons">
+                <button id="nextLevelButton" style="display: none;">Next Level! 🚀</button>
+                <button id="creditsButton" style="display: none;">Credits 🎬</button>
+                <button id="restartButton">Restart Game</button>
+            </div>
+        </div>
+
+        <!-- Credits Screen -->
+        <div id="creditsScreen" style="display: none;">
+            <h1 class="gradient-title">🎮 CREDITS 🎮</h1>
+            <div class="credits-content">
+                <div class="credits-section">
+                    <h2 class="subtitle">Developers</h2>
+                    <div class="dev-names">
+                        <p class="dev-name">Chris</p>
+                        <p class="dev-name">Mitch</p>
+                        <p class="dev-name">Claude</p>
+                    </div>
+                </div>
+                
+                <div class="credits-section">
+                    <p class="company">Brought to you by</p>
+                    <h2 class="company-name">Bluehouse Group</h2>
+                </div>
+                
+                <div class="credits-section">
+                    <p class="thanks">Thanks for playing Git Over It!</p>
+                    <p class="flavor-text">May your deployments be bug-free and your project managers be understanding. 🐙⚔️</p>
+                    <p class="secret-hint">Psst... You found the secret! Press Shift+C anytime to view credits. 🤫</p>
+                </div>
+            </div>
+            <button id="backToMenuButton">Back to Menu</button>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobileControls">
+            <div id="joystick">
+                <div id="joystickKnob"></div>
+            </div>
+            <button id="attackButton">⚔️</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html> 

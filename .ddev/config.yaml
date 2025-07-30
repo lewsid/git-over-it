@@ -1,0 +1,17 @@
+name: tighten-game
+type: php
+docroot: public
+php_version: "8.2"
+webserver_type: nginx-fpm
+router_http_port: "8080"
+router_https_port: "8443"
+xdebug_enabled: false
+additional_hostnames: []
+additional_fqdns: []
+database:
+  type: mysql
+  version: "8.0"
+use_dns_when_possible: true
+composer_version: "2"
+web_environment: []
+nodejs_version: "18" 
